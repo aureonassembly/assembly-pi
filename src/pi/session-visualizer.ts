@@ -1,10 +1,15 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-export const SESSION_VISUALIZATION_PATH = join(
-  process.env.HOME ?? ".",
-  ".local/state/assembly-pi/session-visualization.html",
-);
+function defaultVisualizationPath(): string {
+  const home = process.env.HOME ?? ".";
+  const downloads = join(home, "storage/downloads");
+  if (existsSync(downloads)) return join(downloads, "assembly-pi-session-visualization.html");
+  return join(home, "assembly-pi-session-visualization.html");
+}
+
+export const SESSION_VISUALIZATION_PATH = defaultVisualizationPath();
 
 type Role = "user" | "assistant" | "toolResult" | "system";
 

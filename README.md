@@ -97,7 +97,7 @@ Utilities:
 - `READ ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
 - `SUMMARY`: asks Pi to summarize the latest answer
 - `SPEAK SUMMARY`: asks Pi for a short spoken summary and reads it aloud
-- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session
+- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session in `~/storage/downloads/assembly-pi-session-visualization.html`
 - `OPEN VISUALIZATION`: opens the generated HTML visualization after it is ready
 - `SLASH CMDS`: lists local prompt-template and skill slash commands in the backend terminal
 - `NEW SESSION`: starts a fresh Pi SDK session

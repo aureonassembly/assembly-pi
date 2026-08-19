@@ -8,7 +8,8 @@ import subprocess
 import termuxgui as tg
 
 FIFO = os.path.expanduser("~/.local/state/assembly-pi/control.fifo")
-VIZ = os.path.expanduser("~/.local/state/assembly-pi/session-visualization.html")
+DOWNLOADS = os.path.expanduser("~/storage/downloads")
+VIZ = os.path.join(DOWNLOADS if os.path.isdir(DOWNLOADS) else os.path.expanduser("~"), "assembly-pi-session-visualization.html")
 
 
 def stat_is_fifo(path: str) -> bool:
