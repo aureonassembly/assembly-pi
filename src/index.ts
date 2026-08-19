@@ -1,5 +1,6 @@
 import readline from "node:readline";
 import { VoiceApp } from "./app.js";
+import { DEFAULT_FIFO_PATH, ensureControlFifo, FifoControlServer } from "./control/fifo.js";
 
 function restoreTerminal(): void {
   process.stdout.write("\x1b[0m\x1b[?25h\n");
@@ -15,8 +16,12 @@ async function main(): Promise<void> {
   process.stdin.resume();
 
   const app = new VoiceApp(process.cwd());
+  const fifoPath = await ensureControlFifo(DEFAULT_FIFO_PATH);
+  const control = new FifoControlServer(fifoPath, (command) => app.onControlCommand(command));
+  control.start();
 
   const cleanup = async (): Promise<void> => {
+    control.stop();
     process.stdin.setRawMode(false);
     restoreTerminal();
     await app.dispose();

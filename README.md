@@ -9,6 +9,27 @@ npm install
 npm run dev
 ```
 
+## Android widget buttons
+
+Install/update Termux:Widget shortcut buttons:
+
+```bash
+cd ~/assembly-pi
+./scripts/install-widget-shortcuts.sh
+```
+
+Then add Termux:Widget shortcuts from the Android home screen.
+
+Available buttons:
+
+- `assembly-pi-record-toggle`: start/stop speech capture
+- `assembly-pi-send`: send confirmed transcript to Pi
+- `assembly-pi-clear`: clear/cancel
+- `assembly-pi-speak`: speak answer
+- `assembly-pi-quit`: quit app
+
+The terminal app must be running (`npm run dev`) for the buttons to control it.
+
 ## Keys
 
 - `R` / `Space`: start/stop speech capture (pauses auto-restart)

@@ -4,6 +4,7 @@ import { PiSdkTransport } from "./pi/transport.js";
 import { TermuxSpeechToTextProvider } from "./providers/termux-stt.js";
 import { TermuxTtsProvider, normalizeSpeechText } from "./providers/termux-tts.js";
 import { renderScreen } from "./ui/tui.js";
+import type { ControlCommand } from "./control/fifo.js";
 import type { AppState, TtsMode } from "./types.js";
 
 function nowStamp(): string {
@@ -327,6 +328,27 @@ export class VoiceApp {
       this.draft = this.draft.slice(0, this.editingCursor) + sequence + this.draft.slice(this.editingCursor);
       this.editingCursor += 1;
       this.render();
+    }
+  }
+
+  onControlCommand(command: ControlCommand): void {
+    switch (command) {
+      case "TOGGLE":
+        if (this.state === "LISTENING" || this.state === "TRANSCRIBING") this.stopCapture();
+        else void this.beginCapture();
+        return;
+      case "SEND":
+        if (this.state === "CONFIRMING") void this.sendTranscript();
+        return;
+      case "CLEAR":
+        this.resetPrompt();
+        return;
+      case "SPEAK":
+        void this.speakResponse();
+        return;
+      case "QUIT":
+        void this.dispose().finally(() => process.exit(0));
+        return;
     }
   }
 
