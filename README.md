@@ -9,6 +9,40 @@ npm install
 npm run dev
 ```
 
+## Clickable Android GUI
+
+This uses the same `termuxgui` approach as `~/gui-game.py`.
+
+Start the terminal backend first:
+
+```bash
+cd ~/assembly-pi
+npm run dev
+```
+
+Then launch the clickable GUI:
+
+```bash
+cd ~/assembly-pi
+./scripts/assembly-pi-gui.py
+```
+
+The GUI has real Android buttons for:
+
+- record/stop
+- send confirmed transcript
+- send a typed prompt directly to the live Pi session
+- speak answer
+- clear
+- quit
+
+Optional GUI launcher shortcut:
+
+```bash
+cd ~/assembly-pi
+./scripts/install-gui-shortcut.sh
+```
+
 ## Android widget buttons
 
 Install/update Termux:Widget shortcut buttons:

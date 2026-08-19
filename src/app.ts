@@ -332,6 +332,19 @@ export class VoiceApp {
   }
 
   onControlCommand(command: ControlCommand): void {
+    if (typeof command !== "string") {
+      if (command.type === "PROMPT") {
+        this.transcript = command.text.trim();
+        this.draft = this.transcript;
+        this.response = "";
+        this.clearError();
+        this.pushHistory("gui", "prompt received");
+        this.render();
+        void this.sendTranscript();
+      }
+      return;
+    }
+
     switch (command) {
       case "TOGGLE":
         if (this.state === "LISTENING" || this.state === "TRANSCRIBING") this.stopCapture();

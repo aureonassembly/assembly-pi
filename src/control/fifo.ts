@@ -3,7 +3,8 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 
-export type ControlCommand = "TOGGLE" | "SEND" | "CLEAR" | "SPEAK" | "QUIT";
+export type SimpleControlCommand = "TOGGLE" | "SEND" | "CLEAR" | "SPEAK" | "QUIT";
+export type ControlCommand = SimpleControlCommand | { type: "PROMPT"; text: string };
 
 export const DEFAULT_FIFO_PATH = join(process.env.HOME ?? ".", ".local/state/assembly-pi/control.fifo");
 
@@ -58,12 +59,12 @@ export class FifoControlServer {
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() ?? "";
       for (const line of lines) {
-        this.dispatch(line.trim().toUpperCase());
+        this.dispatch(line.trim());
       }
     });
 
     stream.on("end", () => {
-      if (buffer.trim()) this.dispatch(buffer.trim().toUpperCase());
+      if (buffer.trim()) this.dispatch(buffer.trim());
       setTimeout(() => this.openReader(), 25);
     });
 
@@ -74,8 +75,21 @@ export class FifoControlServer {
 
   private dispatch(raw: string): void {
     if (!raw) return;
-    if (raw === "TOGGLE" || raw === "SEND" || raw === "CLEAR" || raw === "SPEAK" || raw === "QUIT") {
-      this.onCommand(raw);
+
+    if (raw.startsWith("PROMPT\t")) {
+      const encoded = raw.slice("PROMPT\t".length);
+      try {
+        const text = Buffer.from(encoded, "base64url").toString("utf8").trim();
+        if (text) this.onCommand({ type: "PROMPT", text });
+      } catch {
+        // Ignore malformed prompt commands.
+      }
+      return;
+    }
+
+    const upper = raw.toUpperCase();
+    if (upper === "TOGGLE" || upper === "SEND" || upper === "CLEAR" || upper === "SPEAK" || upper === "QUIT") {
+      this.onCommand(upper);
     }
   }
 }
