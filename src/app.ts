@@ -33,7 +33,7 @@ export class VoiceApp {
   private sttAbort: AbortController | null = null;
   private captureActive = false;
   private captureAutoSend = false;
-  private captureQuietBursts = 0;
+  private captureStartedAt = 0;
   private info: string[] = [];
   private history: string[] = [];
   private scroll = 0;
@@ -126,7 +126,7 @@ export class VoiceApp {
     const token = this.newOp();
     this.captureActive = true;
     this.captureAutoSend = autoSend;
-    this.captureQuietBursts = 0;
+    this.captureStartedAt = Date.now();
     this.partial = "";
     this.clearError();
     this.response = "";
@@ -137,53 +137,35 @@ export class VoiceApp {
   }
 
   private async runCaptureSession(token: number): Promise<void> {
-    const segments: string[] = [];
-
     try {
-      while (this.captureActive && this.active(token)) {
-        this.sttAbort = new AbortController();
-        this.state = "LISTENING";
-        this.info = [this.captureAutoSend ? "Voice Ask Pi… stop to send." : "Listening… pauses are okay. Space stops."];
-        this.render();
+      this.sttAbort = new AbortController();
+      this.state = "LISTENING";
+      this.info = [this.captureAutoSend ? "Voice Ask Pi… stop to transcribe and send." : "Recording… Space stops and transcribes."];
+      this.render();
 
-        const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
-          if (!this.active(token) || !this.captureActive) return;
-          this.partial = partial;
-          this.info = [`Heard: ${partial}`];
-          this.render();
-        });
+      const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
         if (!this.active(token)) return;
+        this.partial = partial;
+        this.info = [partial];
+        this.render();
+      });
+      if (!this.active(token)) return;
 
-        const text = result.text.trim().replace(/\s+/g, " ");
-        if (text) {
-          segments.push(text);
-          this.transcript = segments.join(" ");
-          this.draft = this.transcript;
-          this.captureQuietBursts = 0;
-          this.pushHistory("stt", `segment ${result.durationMs}ms`);
-          this.info = [this.captureAutoSend ? "Voice Ask Pi… stop to send." : "Listening… pauses are okay. Space stops."];
-          this.render();
-        } else {
-          this.captureQuietBursts += 1;
-          this.pushHistory("stt", `pause ${result.durationMs}ms`);
-          if (!segments.length && this.captureQuietBursts >= 3) {
-            throw new Error(
-              "Groq returned no transcript. Try again closer to the microphone.",
-            );
-          }
-        }
+      this.captureActive = false;
+      const text = result.text.trim().replace(/\s+/g, " ");
+      if (!text) {
+        throw new Error("Groq returned no transcript. Try again closer to the microphone.");
       }
 
-      if (!this.active(token)) return;
-      if (this.transcript.trim()) {
-        if (this.captureAutoSend) {
-          this.setState("TRANSCRIBING", "Transcript ready. Sending to Pi…");
-          await this.sendTranscript();
-        } else {
-          this.setState("CONFIRMING", "Transcript ready. Review before sending.");
-        }
+      this.transcript = text;
+      this.draft = text;
+      this.pushHistory("stt", `groq ${result.durationMs}ms`);
+
+      if (this.captureAutoSend) {
+        this.setState("TRANSCRIBING", "Transcript ready. Sending to Pi…");
+        await this.sendTranscript();
       } else {
-        this.setState("READY", "Stopped.");
+        this.setState("CONFIRMING", "Transcript ready. Review before sending.");
       }
     } catch (err) {
       if (!this.active(token)) return;
@@ -191,6 +173,7 @@ export class VoiceApp {
     } finally {
       this.captureActive = false;
       this.captureAutoSend = false;
+      this.captureStartedAt = 0;
       if (this.sttAbort) this.sttAbort = null;
     }
   }
@@ -243,6 +226,11 @@ export class VoiceApp {
   }
 
   private stopCapture(): void {
+    if (this.captureStartedAt && Date.now() - this.captureStartedAt < 1000) {
+      this.info = ["Recording just started; hold at least 1 second before stopping."];
+      this.render();
+      return;
+    }
     this.captureActive = false;
     try {
       this.sttAbort?.abort();
@@ -250,7 +238,8 @@ export class VoiceApp {
       // ignore
     }
     if (this.state === "LISTENING" || this.state === "TRANSCRIBING") {
-      this.info = ["Stopping… finalizing transcript."];
+      this.state = "TRANSCRIBING";
+      this.info = ["Stopped recording. Uploading to Groq…"];
       this.render();
     }
   }

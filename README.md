@@ -148,7 +148,7 @@ The terminal app must be running (`npm run dev`) for the buttons to control it.
 
 ## Keys
 
-- `R` / `Space`: start/stop speech capture (pauses auto-restart)
+- `R` / `Space`: start/stop one local recording, then transcribe with Groq
 - `Enter`: send confirmed transcript
 - `E`: edit transcript
 - `S`: speak answer (TTS)
