@@ -27,6 +27,8 @@ export class VoiceApp {
   private partial = "";
   private error = "";
   private sttAbort: AbortController | null = null;
+  private captureActive = false;
+  private captureQuietBursts = 0;
   private info: string[] = [];
   private history: string[] = [];
   private scroll = 0;
@@ -112,44 +114,70 @@ export class VoiceApp {
     return token === this.opToken;
   }
 
-  private async captureTranscript(): Promise<void> {
-    if (this.state !== "READY" && this.state !== "ANSWER_READY" && this.state !== "CONFIRMING" && this.state !== "ERROR") return;
+  private async beginCapture(): Promise<void> {
+    if (this.captureActive || this.state === "SENDING" || this.state === "PI_WORKING") return;
 
     const token = this.newOp();
+    this.captureActive = true;
+    this.captureQuietBursts = 0;
     this.partial = "";
     this.clearError();
     this.response = "";
     this.draft = "";
-    this.sttAbort = new AbortController();
-    this.setState("LISTENING", "Listening… press Space again to stop.");
+    this.transcript = "";
+    this.setState("LISTENING", "Listening… pauses are okay. Space stops.");
+    void this.runCaptureSession(token);
+  }
+
+  private async runCaptureSession(token: number): Promise<void> {
+    const segments: string[] = [];
 
     try {
-      const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
-        if (!this.active(token)) return;
-        this.partial = partial;
-        this.info = [`Partial: ${partial}`];
+      while (this.captureActive && this.active(token)) {
+        this.sttAbort = new AbortController();
+        this.state = "LISTENING";
+        this.info = ["Listening… pauses are okay. Space stops."];
         this.render();
-      });
-      if (!this.active(token)) return;
 
-      const text = result.text.trim();
-      if (!text) {
-        throw new Error("No transcript returned by termux-speech-to-text.");
+        const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
+          if (!this.active(token) || !this.captureActive) return;
+          this.partial = partial;
+          this.info = [`Heard: ${partial}`];
+          this.render();
+        });
+        if (!this.active(token)) return;
+
+        const text = result.text.trim().replace(/\s+/g, " ");
+        if (text) {
+          segments.push(text);
+          this.transcript = segments.join(" ");
+          this.draft = this.transcript;
+          this.captureQuietBursts = 0;
+          this.pushHistory("stt", `segment ${result.durationMs}ms`);
+          this.info = ["Listening… pauses are okay. Space stops."];
+          this.render();
+        } else {
+          this.captureQuietBursts += 1;
+          this.pushHistory("stt", `pause ${result.durationMs}ms`);
+          if (!segments.length && this.captureQuietBursts >= 3) {
+            throw new Error(
+              "Android speech recognition returned no transcript. Try again or check microphone permission.",
+            );
+          }
+        }
       }
 
-      this.transcript = text;
-      this.draft = text;
-      this.response = "";
-      this.partial = "";
-      this.pushHistory("stt", `ok in ${result.durationMs}ms`);
-      this.state = "TRANSCRIBING";
-      this.info = ["Finalizing transcript…"];
-      this.render();
-      this.setState("CONFIRMING", "Transcript ready. Review before sending.");
+      if (!this.active(token)) return;
+      if (this.transcript.trim()) {
+        this.setState("CONFIRMING", "Transcript ready. Review before sending.");
+      } else {
+        this.setState("READY", "Stopped.");
+      }
     } catch (err) {
       if (!this.active(token)) return;
       this.fail(`STT failed: ${errorMessage(err)}`);
     } finally {
+      this.captureActive = false;
       if (this.sttAbort) this.sttAbort = null;
     }
   }
@@ -201,13 +229,22 @@ export class VoiceApp {
     }
   }
 
-  private async abortCurrent(): Promise<void> {
-    this.newOp();
+  private stopCapture(): void {
+    this.captureActive = false;
     try {
       this.sttAbort?.abort();
     } catch {
       // ignore
     }
+    if (this.state === "LISTENING" || this.state === "TRANSCRIBING") {
+      this.info = ["Stopping… finalizing transcript."];
+      this.render();
+    }
+  }
+
+  private async abortCurrent(): Promise<void> {
+    this.newOp();
+    this.stopCapture();
     try {
       await this.pi.abort();
     } catch {
@@ -302,7 +339,7 @@ export class VoiceApp {
 
     if (this.state === "ERROR") {
       if (name === "r" || name === "space") {
-        void this.captureTranscript();
+        void this.beginCapture();
         return;
       }
       if (name === "return" || name === "escape" || name === "x") {
@@ -318,7 +355,7 @@ export class VoiceApp {
 
     if (this.state === "LISTENING") {
       if (name === "r" || name === "space") {
-        this.sttAbort?.abort();
+        this.stopCapture();
       } else if (name === "escape" || name === "x") {
         void this.abortCurrent();
       }
@@ -326,7 +363,9 @@ export class VoiceApp {
     }
 
     if (this.state === "TRANSCRIBING") {
-      if (name === "escape" || name === "x") {
+      if (name === "r" || name === "space") {
+        this.stopCapture();
+      } else if (name === "escape" || name === "x") {
         void this.abortCurrent();
       }
       return;
@@ -354,7 +393,7 @@ export class VoiceApp {
       case "r":
       case "space":
         if (this.state === "READY" || this.state === "ANSWER_READY" || this.state === "CONFIRMING" || this.state === "ERROR") {
-          void this.captureTranscript();
+          void this.beginCapture();
         }
         return;
       case "e":

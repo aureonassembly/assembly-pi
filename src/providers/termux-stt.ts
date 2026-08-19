@@ -14,13 +14,7 @@ export class TermuxSpeechToTextProvider implements STTProvider {
     let lastError: Error | undefined;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        const result = await this.runOnce(signal, onPartial);
-        if (!result.text.trim() && !signal?.aborted) {
-          throw new Error(
-            "termux-speech-to-text returned no transcript. If this persists, confirm Android microphone permission and test in an interactive Termux session.",
-          );
-        }
-        return result;
+        return await this.runOnce(signal, onPartial);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         if (attempt < attempts) {

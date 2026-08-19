@@ -91,3 +91,4 @@ Observed CLI behavior:
 - The Pi backend is a live SDK session; the UI now surfaces the session ID/file on startup.
 - TTS starts OFF.
 - The app keeps transcript confirmation before send.
+- Speech capture is now a continuous push-to-talk session: Android STT may end on silence, but the UI auto-restarts it until Space is pressed again.
