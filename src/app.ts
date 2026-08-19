@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PiSdkTransport } from "./pi/transport.js";
+import { listLocalSlashCommands } from "./pi/slash-commands.js";
 import { GroqSpeechToTextProvider } from "./providers/groq-stt.js";
 import { TermuxTtsProvider, normalizeSpeechText } from "./providers/termux-tts.js";
 import { renderScreen } from "./ui/tui.js";
@@ -25,6 +26,7 @@ export class VoiceApp {
   private transcript = "";
   private draft = "";
   private response = "";
+  private lastSummary = "";
   private partial = "";
   private error = "";
   private sttAbort: AbortController | null = null;
@@ -102,6 +104,7 @@ export class VoiceApp {
     this.transcript = "";
     this.draft = "";
     this.response = "";
+    this.lastSummary = "";
     this.partial = "";
     this.clearError();
     this.setState("READY", "Ready.");
@@ -265,9 +268,72 @@ export class VoiceApp {
     this.setState("READY", "Cancelled.");
   }
 
-  private async speakResponse(force = false): Promise<void> {
+  private async switchPiSession(mode: "new" | "continue"): Promise<void> {
+    try {
+      this.clearError();
+      const info = mode === "new" ? await this.pi.newSession() : await this.pi.continueSession();
+      this.piSessionId = info.sessionId;
+      this.transcript = "";
+      this.draft = "";
+      this.response = "";
+      this.lastSummary = "";
+      this.pushHistory("pi", `${mode === "new" ? "new" : "continued"} session ${info.sessionId?.slice(0, 8) ?? "?"}`);
+      this.setState("READY", mode === "new" ? "New Pi session ready." : "Continued latest Pi session.");
+    } catch (err) {
+      this.fail(`Pi session switch failed: ${errorMessage(err)}`);
+    }
+  }
+
+  private async showSlashCommands(): Promise<void> {
+    try {
+      this.transcript = "Slash commands";
+      this.response = await listLocalSlashCommands(this.cwd);
+      this.pushHistory("cmd", "listed slash commands");
+      this.setState("ANSWER_READY", "Slash commands listed.");
+    } catch (err) {
+      this.fail(`Command listing failed: ${errorMessage(err)}`);
+    }
+  }
+
+  private async summarizeLastAnswer(speak = false): Promise<void> {
     if (!this.response.trim()) {
-      this.pushHistory("tts", "No answer to speak yet.");
+      this.pushHistory("summary", "No answer to summarize yet.");
+      this.render();
+      return;
+    }
+
+    const original = this.response;
+    const token = this.newOp();
+    this.clearError();
+    this.transcript = "Summarize last answer";
+    this.response = "";
+    this.setState("PI_WORKING", "Asking Pi for a short summary…");
+
+    try {
+      const result = await this.pi.prompt(
+        `Summarize your previous answer in 2 short spoken-friendly sentences. Do not add code blocks. Previous answer:\n\n${original}`,
+        (chunk) => {
+          if (!this.active(token)) return;
+          this.response += chunk;
+          this.render();
+        },
+      );
+      if (!this.active(token)) return;
+      this.response = result.text || this.response.trim();
+      this.lastSummary = this.response;
+      this.piSessionId = result.sessionId;
+      this.pushHistory("summary", "ready");
+      this.setState("ANSWER_READY", "Summary ready.");
+      if (speak) await this.speakText(this.lastSummary || this.response, true);
+    } catch (err) {
+      if (!this.active(token)) return;
+      this.fail(`Summary failed: ${errorMessage(err)}`);
+    }
+  }
+
+  private async speakText(text: string, force = false): Promise<void> {
+    if (!text.trim()) {
+      this.pushHistory("tts", "Nothing to speak yet.");
       this.render();
       return;
     }
@@ -277,13 +343,16 @@ export class VoiceApp {
       return;
     }
     try {
-      const text = normalizeSpeechText(this.response);
-      await this.tts.speak(text);
+      await this.tts.speak(normalizeSpeechText(text));
       this.pushHistory("tts", "Spoken.");
       this.render();
     } catch (err) {
       this.fail(`TTS failed: ${errorMessage(err)}`);
     }
+  }
+
+  private async speakResponse(force = false): Promise<void> {
+    await this.speakText(this.response, force);
   }
 
   private toggleTtsMode(): void {
@@ -374,6 +443,21 @@ export class VoiceApp {
         return;
       case "SPEAK":
         void this.speakResponse(true);
+        return;
+      case "NEW_SESSION":
+        void this.switchPiSession("new");
+        return;
+      case "CONTINUE_SESSION":
+        void this.switchPiSession("continue");
+        return;
+      case "LIST_COMMANDS":
+        void this.showSlashCommands();
+        return;
+      case "SUMMARIZE":
+        void this.summarizeLastAnswer(false);
+        return;
+      case "SPEAK_SUMMARY":
+        void this.summarizeLastAnswer(true);
         return;
       case "QUIT":
         void this.dispose().finally(() => process.exit(0));

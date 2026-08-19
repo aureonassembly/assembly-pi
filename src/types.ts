@@ -52,6 +52,8 @@ export interface PiSessionInfo {
 
 export interface PiTransport {
   getSessionInfo(): Promise<PiSessionInfo>;
+  newSession(): Promise<PiSessionInfo>;
+  continueSession(): Promise<PiSessionInfo>;
   prompt(text: string, onDelta?: (chunk: string) => void): Promise<PiResult>;
   abort(): Promise<void>;
   dispose(): Promise<void>;

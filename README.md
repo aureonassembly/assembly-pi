@@ -94,9 +94,27 @@ The GUI now has two main actions plus utilities:
 
 Utilities:
 
-- `READ LAST ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
+- `READ ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
+- `SUMMARY`: asks Pi to summarize the latest answer
+- `SPEAK SUMMARY`: asks Pi for a short spoken summary and reads it aloud
+- `SLASH CMDS`: lists local prompt-template and skill slash commands in the backend terminal
+- `NEW SESSION`: starts a fresh Pi SDK session
+- `CONTINUE`: reattaches to the latest saved Pi session for this project
 - `CLEAR`: clears current transcript/answer view
 - `QUIT BACKEND`: exits the running backend
+
+### Slash commands
+
+You can type slash commands directly in the GUI prompt box and press `SEND TYPED PROMPT TO PI`.
+
+Examples:
+
+```text
+/skill:name do the thing
+/my-template extra instructions
+```
+
+The `SLASH CMDS` button lists locally discoverable skills/templates. TUI-only Pi commands like `/settings` are not available in this custom GUI.
 
 Optional GUI launcher shortcut:
 

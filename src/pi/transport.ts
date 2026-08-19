@@ -1,13 +1,15 @@
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 import type { PiResult, PiSessionInfo, PiTransport } from "../types.js";
 
+type SessionHandle = Awaited<ReturnType<typeof createAgentSession>>["session"];
+
 export class PiSdkTransport implements PiTransport {
-  private readonly ready: Promise<void>;
-  private session: Awaited<ReturnType<typeof createAgentSession>>["session"] | null = null;
+  private ready: Promise<void>;
+  private session: SessionHandle | null = null;
   private active = false;
 
   constructor(private readonly cwd: string) {
-    this.ready = this.init();
+    this.ready = this.init("continue");
   }
 
   async waitReady(): Promise<void> {
@@ -16,16 +18,39 @@ export class PiSdkTransport implements PiTransport {
 
   async getSessionInfo(): Promise<PiSessionInfo> {
     await this.ready;
+    return this.currentInfo();
+  }
+
+  async newSession(): Promise<PiSessionInfo> {
+    await this.ready;
+    this.ready = this.init("new");
+    await this.ready;
+    return this.currentInfo();
+  }
+
+  async continueSession(): Promise<PiSessionInfo> {
+    await this.ready;
+    this.ready = this.init("continue");
+    await this.ready;
+    return this.currentInfo();
+  }
+
+  private currentInfo(): PiSessionInfo {
     return {
       sessionId: this.session?.sessionId,
       sessionFile: this.session?.sessionFile,
     };
   }
 
-  private async init(): Promise<void> {
+  private async init(mode: "new" | "continue"): Promise<void> {
+    if (this.session) {
+      this.session.dispose();
+      this.session = null;
+    }
+
     const { session, modelFallbackMessage } = await createAgentSession({
       cwd: this.cwd,
-      sessionManager: SessionManager.continueRecent(this.cwd),
+      sessionManager: mode === "new" ? SessionManager.create(this.cwd) : SessionManager.continueRecent(this.cwd),
       thinkingLevel: "off",
     });
 
@@ -69,6 +94,7 @@ export class PiSdkTransport implements PiTransport {
   }
 
   async dispose(): Promise<void> {
+    await this.ready.catch(() => undefined);
     if (this.session) {
       this.session.dispose();
       this.session = null;
