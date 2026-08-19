@@ -29,30 +29,42 @@ npm install
 npm run dev
 ```
 
-Or persistent tmux backend:
+Recommended split tmux stack: backend + GUI launcher panes:
+
+```bash
+cd ~/assembly-pi
+./scripts/start-stack-tmux.sh
+tmux attach -t assembly-pi-stack
+```
+
+Install Android shortcut for the split stack:
+
+```bash
+cd ~/assembly-pi
+./scripts/install-stack-shortcut.sh
+```
+
+Then launch `assembly-pi-stack` from Termux:Widget/shortcut.
+
+Backend-only tmux mode is also available:
 
 ```bash
 cd ~/assembly-pi
 ./scripts/start-backend-tmux.sh
-```
-
-Attach to see answers:
-
-```bash
 tmux attach -t assembly-pi
 ```
 
-Detach without killing it: `Ctrl+b`, then `d`.
+Detach from tmux without killing it: `Ctrl+b`, then `d`.
 
 ## Clickable Android GUI
 
 This uses the same `termuxgui` approach as `~/gui-game.py`.
 
-Start the terminal backend first, preferably in tmux:
+Start the terminal backend first, preferably with the split stack:
 
 ```bash
 cd ~/assembly-pi
-./scripts/start-backend-tmux.sh
+./scripts/start-stack-tmux.sh
 ```
 
 Then launch the clickable GUI:
