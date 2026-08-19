@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 
-export type SimpleControlCommand = "TOGGLE" | "SEND" | "CLEAR" | "SPEAK" | "QUIT";
+export type SimpleControlCommand = "TOGGLE" | "VOICE_ASK" | "SEND" | "CLEAR" | "SPEAK" | "QUIT";
 export type ControlCommand = SimpleControlCommand | { type: "PROMPT"; text: string };
 
 export const DEFAULT_FIFO_PATH = join(process.env.HOME ?? ".", ".local/state/assembly-pi/control.fifo");
@@ -88,7 +88,7 @@ export class FifoControlServer {
     }
 
     const upper = raw.toUpperCase();
-    if (upper === "TOGGLE" || upper === "SEND" || upper === "CLEAR" || upper === "SPEAK" || upper === "QUIT") {
+    if (upper === "TOGGLE" || upper === "VOICE_ASK" || upper === "SEND" || upper === "CLEAR" || upper === "SPEAK" || upper === "QUIT") {
       this.onCommand(upper);
     }
   }

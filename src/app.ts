@@ -29,6 +29,7 @@ export class VoiceApp {
   private error = "";
   private sttAbort: AbortController | null = null;
   private captureActive = false;
+  private captureAutoSend = false;
   private captureQuietBursts = 0;
   private info: string[] = [];
   private history: string[] = [];
@@ -115,18 +116,19 @@ export class VoiceApp {
     return token === this.opToken;
   }
 
-  private async beginCapture(): Promise<void> {
+  private async beginCapture(autoSend = false): Promise<void> {
     if (this.captureActive || this.state === "SENDING" || this.state === "PI_WORKING") return;
 
     const token = this.newOp();
     this.captureActive = true;
+    this.captureAutoSend = autoSend;
     this.captureQuietBursts = 0;
     this.partial = "";
     this.clearError();
     this.response = "";
     this.draft = "";
     this.transcript = "";
-    this.setState("LISTENING", "Listening… pauses are okay. Space stops.");
+    this.setState("LISTENING", autoSend ? "Voice Ask Pi… Space/button stops and sends." : "Listening… pauses are okay. Space stops.");
     void this.runCaptureSession(token);
   }
 
@@ -137,7 +139,7 @@ export class VoiceApp {
       while (this.captureActive && this.active(token)) {
         this.sttAbort = new AbortController();
         this.state = "LISTENING";
-        this.info = ["Listening… pauses are okay. Space stops."];
+        this.info = [this.captureAutoSend ? "Voice Ask Pi… stop to send." : "Listening… pauses are okay. Space stops."];
         this.render();
 
         const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
@@ -155,7 +157,7 @@ export class VoiceApp {
           this.draft = this.transcript;
           this.captureQuietBursts = 0;
           this.pushHistory("stt", `segment ${result.durationMs}ms`);
-          this.info = ["Listening… pauses are okay. Space stops."];
+          this.info = [this.captureAutoSend ? "Voice Ask Pi… stop to send." : "Listening… pauses are okay. Space stops."];
           this.render();
         } else {
           this.captureQuietBursts += 1;
@@ -170,7 +172,12 @@ export class VoiceApp {
 
       if (!this.active(token)) return;
       if (this.transcript.trim()) {
-        this.setState("CONFIRMING", "Transcript ready. Review before sending.");
+        if (this.captureAutoSend) {
+          this.setState("TRANSCRIBING", "Transcript ready. Sending to Pi…");
+          await this.sendTranscript();
+        } else {
+          this.setState("CONFIRMING", "Transcript ready. Review before sending.");
+        }
       } else {
         this.setState("READY", "Stopped.");
       }
@@ -179,6 +186,7 @@ export class VoiceApp {
       this.fail(`STT failed: ${errorMessage(err)}`);
     } finally {
       this.captureActive = false;
+      this.captureAutoSend = false;
       if (this.sttAbort) this.sttAbort = null;
     }
   }
@@ -348,7 +356,11 @@ export class VoiceApp {
     switch (command) {
       case "TOGGLE":
         if (this.state === "LISTENING" || this.state === "TRANSCRIBING") this.stopCapture();
-        else void this.beginCapture();
+        else void this.beginCapture(false);
+        return;
+      case "VOICE_ASK":
+        if (this.state === "LISTENING" || this.state === "TRANSCRIBING") this.stopCapture();
+        else void this.beginCapture(true);
         return;
       case "SEND":
         if (this.state === "CONFIRMING") void this.sendTranscript();

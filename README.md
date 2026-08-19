@@ -4,20 +4,37 @@ Terminal-first voice UI around Pi for Termux.
 
 ## Run
 
+Foreground backend:
+
 ```bash
 npm install
 npm run dev
 ```
 
+Or persistent tmux backend:
+
+```bash
+cd ~/assembly-pi
+./scripts/start-backend-tmux.sh
+```
+
+Attach to see answers:
+
+```bash
+tmux attach -t assembly-pi
+```
+
+Detach without killing it: `Ctrl+b`, then `d`.
+
 ## Clickable Android GUI
 
 This uses the same `termuxgui` approach as `~/gui-game.py`.
 
-Start the terminal backend first:
+Start the terminal backend first, preferably in tmux:
 
 ```bash
 cd ~/assembly-pi
-npm run dev
+./scripts/start-backend-tmux.sh
 ```
 
 Then launch the clickable GUI:
@@ -27,14 +44,33 @@ cd ~/assembly-pi
 ./scripts/assembly-pi-gui.py
 ```
 
-The GUI has real Android buttons for:
+The GUI has real Android buttons for two main paths:
 
-- record/stop
-- send confirmed transcript
-- send a typed prompt directly to the live Pi session
-- speak answer
-- clear
-- quit
+### Type → Pi
+
+1. type in the prompt box
+2. press `SEND TYPED PROMPT TO PI`
+3. answer appears in the terminal/tmux backend
+
+### Voice → Pi
+
+Fast path:
+
+1. press `🎙 VOICE ASK PI`
+2. speak
+3. press it again
+4. transcript is sent automatically to Pi
+5. answer appears in terminal/tmux backend
+
+Review path:
+
+1. press `REC REVIEW`
+2. speak
+3. press `REC REVIEW` again
+4. review/edit transcript in terminal
+5. press `SEND REVIEWED`
+
+Other buttons: speak answer, clear, quit.
 
 Optional GUI launcher shortcut:
 
