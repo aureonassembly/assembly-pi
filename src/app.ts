@@ -48,6 +48,13 @@ export class VoiceApp {
     this.render();
     try {
       await this.pi.waitReady();
+      const info = await this.pi.getSessionInfo();
+      this.piSessionId = info.sessionId;
+      if (info.sessionFile) {
+        this.pushHistory("pi", `session ${info.sessionId?.slice(0, 8) ?? "?"} ${info.sessionFile}`);
+      } else {
+        this.pushHistory("pi", `session ${info.sessionId?.slice(0, 8) ?? "?"}`);
+      }
       this.setState("READY", "Press R or Space to speak.");
     } catch (err) {
       this.fail(`Pi init failed: ${errorMessage(err)}`);

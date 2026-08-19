@@ -1,5 +1,5 @@
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
-import type { PiResult, PiTransport } from "../types.js";
+import type { PiResult, PiSessionInfo, PiTransport } from "../types.js";
 
 export class PiSdkTransport implements PiTransport {
   private readonly ready: Promise<void>;
@@ -12,6 +12,14 @@ export class PiSdkTransport implements PiTransport {
 
   async waitReady(): Promise<void> {
     await this.ready;
+  }
+
+  async getSessionInfo(): Promise<PiSessionInfo> {
+    await this.ready;
+    return {
+      sessionId: this.session?.sessionId,
+      sessionFile: this.session?.sessionFile,
+    };
   }
 
   private async init(): Promise<void> {

@@ -42,7 +42,13 @@ export interface PiResult {
   sessionFile?: string;
 }
 
+export interface PiSessionInfo {
+  sessionId?: string;
+  sessionFile?: string;
+}
+
 export interface PiTransport {
+  getSessionInfo(): Promise<PiSessionInfo>;
   prompt(text: string, onDelta?: (chunk: string) => void): Promise<PiResult>;
   abort(): Promise<void>;
   dispose(): Promise<void>;

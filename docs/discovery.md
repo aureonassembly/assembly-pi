@@ -88,5 +88,6 @@ Observed CLI behavior:
 ## Notes
 
 - The app is terminal-first and does not build an Android APK.
+- The Pi backend is a live SDK session; the UI now surfaces the session ID/file on startup.
 - TTS starts OFF.
 - The app keeps transcript confirmation before send.
