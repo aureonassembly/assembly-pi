@@ -21,7 +21,10 @@ export interface TranscriptResult {
 }
 
 export interface STTProvider {
-  transcribe(onPartial?: (partial: string) => void): Promise<TranscriptResult>;
+  transcribe(
+    signal?: AbortSignal,
+    onPartial?: (partial: string) => void,
+  ): Promise<TranscriptResult>;
 }
 
 export interface TTSProvider {

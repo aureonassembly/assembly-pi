@@ -11,7 +11,7 @@ npm run dev
 
 ## Keys
 
-- `R` / `Space`: record / capture speech
+- `R` / `Space`: start/stop speech capture
 - `Enter`: send confirmed transcript
 - `E`: edit transcript
 - `S`: speak answer (TTS)

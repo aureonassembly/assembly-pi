@@ -26,6 +26,7 @@ export class VoiceApp {
   private response = "";
   private partial = "";
   private error = "";
+  private sttAbort: AbortController | null = null;
   private info: string[] = [];
   private history: string[] = [];
   private scroll = 0;
@@ -119,16 +120,13 @@ export class VoiceApp {
     this.clearError();
     this.response = "";
     this.draft = "";
-    this.setState("LISTENING", "Listening… speak now.");
-    this.state = "TRANSCRIBING";
-    this.info = ["Transcribing with Android speech recognition…"];
-    this.render();
+    this.sttAbort = new AbortController();
+    this.setState("LISTENING", "Listening… press Space again to stop.");
 
     try {
-      const result = await this.stt.transcribe((partial) => {
+      const result = await this.stt.transcribe(this.sttAbort.signal, (partial) => {
         if (!this.active(token)) return;
         this.partial = partial;
-        this.state = "TRANSCRIBING";
         this.info = [`Partial: ${partial}`];
         this.render();
       });
@@ -144,10 +142,15 @@ export class VoiceApp {
       this.response = "";
       this.partial = "";
       this.pushHistory("stt", `ok in ${result.durationMs}ms`);
+      this.state = "TRANSCRIBING";
+      this.info = ["Finalizing transcript…"];
+      this.render();
       this.setState("CONFIRMING", "Transcript ready. Review before sending.");
     } catch (err) {
       if (!this.active(token)) return;
       this.fail(`STT failed: ${errorMessage(err)}`);
+    } finally {
+      if (this.sttAbort) this.sttAbort = null;
     }
   }
 
@@ -200,6 +203,11 @@ export class VoiceApp {
 
   private async abortCurrent(): Promise<void> {
     this.newOp();
+    try {
+      this.sttAbort?.abort();
+    } catch {
+      // ignore
+    }
     try {
       await this.pi.abort();
     } catch {
@@ -308,10 +316,17 @@ export class VoiceApp {
       return;
     }
 
-    if (this.state === "LISTENING" || this.state === "TRANSCRIBING") {
+    if (this.state === "LISTENING") {
       if (name === "r" || name === "space") {
-        void this.abortCurrent().then(() => void this.captureTranscript());
+        this.sttAbort?.abort();
       } else if (name === "escape" || name === "x") {
+        void this.abortCurrent();
+      }
+      return;
+    }
+
+    if (this.state === "TRANSCRIBING") {
+      if (name === "escape" || name === "x") {
         void this.abortCurrent();
       }
       return;
@@ -338,7 +353,9 @@ export class VoiceApp {
     switch (name) {
       case "r":
       case "space":
-        void this.captureTranscript();
+        if (this.state === "READY" || this.state === "ANSWER_READY" || this.state === "CONFIRMING" || this.state === "ERROR") {
+          void this.captureTranscript();
+        }
         return;
       case "e":
         this.openEditor();

@@ -2,16 +2,20 @@ import { spawn } from "node:child_process";
 import { TranscriptResult, type STTProvider } from "../types.js";
 
 export class TermuxSpeechToTextProvider implements STTProvider {
-  async transcribe(onPartial?: (partial: string) => void): Promise<TranscriptResult> {
-    return await this.runWithRetry(onPartial, 2);
+  async transcribe(signal?: AbortSignal, onPartial?: (partial: string) => void): Promise<TranscriptResult> {
+    return await this.runWithRetry(signal, onPartial, 2);
   }
 
-  private async runWithRetry(onPartial: ((partial: string) => void) | undefined, attempts: number): Promise<TranscriptResult> {
+  private async runWithRetry(
+    signal: AbortSignal | undefined,
+    onPartial: ((partial: string) => void) | undefined,
+    attempts: number,
+  ): Promise<TranscriptResult> {
     let lastError: Error | undefined;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        const result = await this.runOnce(onPartial);
-        if (!result.text.trim()) {
+        const result = await this.runOnce(signal, onPartial);
+        if (!result.text.trim() && !signal?.aborted) {
           throw new Error(
             "termux-speech-to-text returned no transcript. If this persists, confirm Android microphone permission and test in an interactive Termux session.",
           );
@@ -28,7 +32,10 @@ export class TermuxSpeechToTextProvider implements STTProvider {
     throw lastError ?? new Error("termux-speech-to-text failed without a detailed error");
   }
 
-  private async runOnce(onPartial: ((partial: string) => void) | undefined): Promise<TranscriptResult> {
+  private async runOnce(
+    signal: AbortSignal | undefined,
+    onPartial: ((partial: string) => void) | undefined,
+  ): Promise<TranscriptResult> {
     const started = Date.now();
     const partials: string[] = [];
     let stdout = "";
@@ -38,6 +45,20 @@ export class TermuxSpeechToTextProvider implements STTProvider {
       const child = spawn("termux-speech-to-text", [], {
         stdio: ["ignore", "pipe", "pipe"],
       });
+
+      const abortChild = () => {
+        try {
+          child.kill("SIGINT");
+          setTimeout(() => child.kill("SIGTERM"), 400);
+        } catch {
+          // ignore
+        }
+      };
+
+      if (signal) {
+        if (signal.aborted) abortChild();
+        signal.addEventListener("abort", abortChild, { once: true });
+      }
 
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
@@ -58,9 +79,10 @@ export class TermuxSpeechToTextProvider implements STTProvider {
         reject(new Error(`${err.message}${stderr.trim() ? `: ${stderr.trim()}` : ""}`));
       });
 
-      child.on("close", (code) => {
+      child.on("close", (code, _signal) => {
         const text = stdout.trim().replace(/\s+/g, " ");
-        if (code !== 0) {
+        if (signal) signal.removeEventListener("abort", abortChild);
+        if (code !== 0 && !signal?.aborted) {
           reject(new Error(stderr.trim() || `termux-speech-to-text exited with code ${code}`));
           return;
         }
