@@ -11,7 +11,7 @@ export class TermuxTtsProvider implements TTSProvider {
     if (!normalized) return;
 
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("termux-tts-speak", [normalized], {
+      const child = spawn("termux-tts-speak", ["-s", "MUSIC", normalized], {
         stdio: ["ignore", "ignore", "pipe"],
       });
       let stderr = "";
