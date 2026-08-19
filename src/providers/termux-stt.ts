@@ -3,6 +3,32 @@ import { TranscriptResult, type STTProvider } from "../types.js";
 
 export class TermuxSpeechToTextProvider implements STTProvider {
   async transcribe(onPartial?: (partial: string) => void): Promise<TranscriptResult> {
+    return await this.runWithRetry(onPartial, 2);
+  }
+
+  private async runWithRetry(onPartial: ((partial: string) => void) | undefined, attempts: number): Promise<TranscriptResult> {
+    let lastError: Error | undefined;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        const result = await this.runOnce(onPartial);
+        if (!result.text.trim()) {
+          throw new Error(
+            "termux-speech-to-text returned no transcript. If this persists, confirm Android microphone permission and test in an interactive Termux session.",
+          );
+        }
+        return result;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < attempts) {
+          await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        }
+      }
+    }
+
+    throw lastError ?? new Error("termux-speech-to-text failed without a detailed error");
+  }
+
+  private async runOnce(onPartial: ((partial: string) => void) | undefined): Promise<TranscriptResult> {
     const started = Date.now();
     const partials: string[] = [];
     let stdout = "";
@@ -28,7 +54,9 @@ export class TermuxSpeechToTextProvider implements STTProvider {
         stderr += chunk;
       });
 
-      child.on("error", reject);
+      child.on("error", (err) => {
+        reject(new Error(`${err.message}${stderr.trim() ? `: ${stderr.trim()}` : ""}`));
+      });
 
       child.on("close", (code) => {
         const text = stdout.trim().replace(/\s+/g, " ");

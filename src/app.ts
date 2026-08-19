@@ -105,7 +105,7 @@ export class VoiceApp {
   }
 
   private async captureTranscript(): Promise<void> {
-    if (this.state !== "READY" && this.state !== "ANSWER_READY") return;
+    if (this.state !== "READY" && this.state !== "ANSWER_READY" && this.state !== "CONFIRMING" && this.state !== "ERROR") return;
 
     const token = this.newOp();
     this.partial = "";
@@ -286,7 +286,11 @@ export class VoiceApp {
     }
 
     if (this.state === "ERROR") {
-      if (name === "return" || name === "escape") {
+      if (name === "r" || name === "space") {
+        void this.captureTranscript();
+        return;
+      }
+      if (name === "return" || name === "escape" || name === "x") {
         this.resetPrompt();
       }
       return;
@@ -300,7 +304,7 @@ export class VoiceApp {
     if (this.state === "LISTENING" || this.state === "TRANSCRIBING") {
       if (name === "r" || name === "space") {
         void this.abortCurrent().then(() => void this.captureTranscript());
-      } else if (name === "escape") {
+      } else if (name === "escape" || name === "x") {
         void this.abortCurrent();
       }
       return;

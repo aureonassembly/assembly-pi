@@ -28,13 +28,21 @@ termux-speech-to-text
 
 Observed in the harness:
 
-- exits 0 immediately with no transcript output
-- no useful partial output observed here
+- live probe returned a transcript and partials
+- observed latency was about 9 seconds
+- output format was plain text on stdout
+
+Probe result:
+
+```text
+test test test
+```
 
 Conclusion:
 
-- built-in Android STT could not be confirmed from the non-interactive harness
-- the MVP still uses it as the primary STT provider, but empty-output handling is in place
+- built-in Android STT works on this phone
+- the MVP uses it as the primary STT provider
+- empty-output and single-retry handling are in place, with a clearer failure message if Android STT stays silent
 
 ### TTS
 
