@@ -265,9 +265,13 @@ export class VoiceApp {
     this.setState("READY", "Cancelled.");
   }
 
-  private async speakResponse(): Promise<void> {
-    if (!this.response.trim()) return;
-    if (this.ttsMode === "OFF") {
+  private async speakResponse(force = false): Promise<void> {
+    if (!this.response.trim()) {
+      this.pushHistory("tts", "No answer to speak yet.");
+      this.render();
+      return;
+    }
+    if (this.ttsMode === "OFF" && !force) {
       this.pushHistory("tts", "TTS is OFF.");
       this.render();
       return;
@@ -369,7 +373,7 @@ export class VoiceApp {
         this.resetPrompt();
         return;
       case "SPEAK":
-        void this.speakResponse();
+        void this.speakResponse(true);
         return;
       case "QUIT":
         void this.dispose().finally(() => process.exit(0));

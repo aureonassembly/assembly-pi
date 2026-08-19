@@ -62,7 +62,7 @@ cd ~/assembly-pi
 ./scripts/assembly-pi-gui.py
 ```
 
-The GUI has real Android buttons for two main paths:
+The GUI now has two main actions plus utilities:
 
 ### Type → Pi
 
@@ -72,8 +72,6 @@ The GUI has real Android buttons for two main paths:
 
 ### Voice → Pi
 
-Fast path:
-
 1. press `🎙 VOICE ASK PI`
 2. speak at your own pace; pauses are fine because audio is recorded locally
 3. press it again
@@ -81,15 +79,11 @@ Fast path:
 5. transcript is sent automatically to Pi
 6. answer appears in terminal/tmux backend
 
-Review path:
+Utilities:
 
-1. press `REC REVIEW`
-2. speak
-3. press `REC REVIEW` again
-4. review/edit transcript in terminal
-5. press `SEND REVIEWED`
-
-Other buttons: speak answer, clear, quit.
+- `READ LAST ANSWER`: speaks the latest Pi answer using Android TTS
+- `CLEAR`: clears current transcript/answer view
+- `QUIT BACKEND`: exits the running backend
 
 Optional GUI launcher shortcut:
 

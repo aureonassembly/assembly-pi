@@ -49,19 +49,19 @@ with tg.Connection() as c:
     root = tg.LinearLayout(a)
     root.setbackgroundcolor(0xff0f172a)
 
-    title = tg.TextView(a, "Assembly Pi Control", root)
-    title.settextsize(24)
+    title = tg.TextView(a, "Assembly Pi", root)
+    title.settextsize(26)
     title.settextcolor(0xff7dd3fc)
-    title.setmargin(14)
+    title.setmargin(16)
     title.setgravity(1, 0)
 
-    status = tg.TextView(a, "Backend: cd ~/assembly-pi && npm run dev", root)
+    status = tg.TextView(a, "Backend: tmux attach -t assembly-pi", root)
     status.settextsize(14)
     status.settextcolor(0xffffffff)
     status.setmargin(8)
     status.setgravity(1, 0)
 
-    section_typed = tg.TextView(a, "TYPE → PI", root)
+    section_typed = tg.TextView(a, "TYPE A PROMPT", root)
     section_typed.settextsize(16)
     section_typed.settextcolor(0xfffacc15)
     section_typed.setmargin(8)
@@ -76,7 +76,7 @@ with tg.Connection() as c:
     btn_send_prompt.settextsize(18)
     btn_send_prompt.setmargin(10)
 
-    section_voice = tg.TextView(a, "VOICE → PI", root)
+    section_voice = tg.TextView(a, "OR SPEAK", root)
     section_voice.settextsize(16)
     section_voice.settextcolor(0xfffacc15)
     section_voice.setmargin(8)
@@ -86,21 +86,9 @@ with tg.Connection() as c:
     btn_voice_ask.settextsize(18)
     btn_voice_ask.setmargin(10)
 
-    row_review = tg.LinearLayout(a, root, False)
-
-    btn_record_review = tg.Button(a, "REC REVIEW", row_review)
-    btn_record_review.settextsize(15)
-    btn_record_review.setmargin(8)
-    btn_record_review.setlinearlayoutparams(1)
-
-    btn_send_transcript = tg.Button(a, "SEND REVIEWED", row_review)
-    btn_send_transcript.settextsize(15)
-    btn_send_transcript.setmargin(8)
-    btn_send_transcript.setlinearlayoutparams(1)
-
     row_tools = tg.LinearLayout(a, root, False)
 
-    btn_speak = tg.Button(a, "🔊 SPEAK", row_tools)
+    btn_speak = tg.Button(a, "🔊 READ LAST ANSWER", row_tools)
     btn_speak.settextsize(15)
     btn_speak.setmargin(8)
     btn_speak.setlinearlayoutparams(1)
@@ -110,13 +98,13 @@ with tg.Connection() as c:
     btn_clear.setmargin(8)
     btn_clear.setlinearlayoutparams(1)
 
-    btn_quit = tg.Button(a, "QUIT", root)
+    btn_quit = tg.Button(a, "QUIT BACKEND", root)
     btn_quit.settextsize(15)
     btn_quit.setmargin(8)
 
     help_text = tg.TextView(
         a,
-        "Typed prompt sends immediately. VOICE ASK PI: tap once, speak, tap again; transcript sends automatically. Answers appear/listen from the terminal backend.",
+        "Two main actions: type+send, or voice ask. Answers appear in tmux/terminal. READ LAST ANSWER uses Android TTS.",
         root,
     )
     help_text.settextsize(13)
@@ -146,17 +134,9 @@ with tg.Connection() as c:
                 ok, msg = send_command("VOICE_ASK")
                 set_status("voice ask toggle sent" if ok else msg, ok)
 
-            elif button_id == btn_record_review.id:
-                ok, msg = send_command("TOGGLE")
-                set_status("review recording toggle sent" if ok else msg, ok)
-
-            elif button_id == btn_send_transcript.id:
-                ok, msg = send_command("SEND")
-                set_status("reviewed transcript sent" if ok else msg, ok)
-
             elif button_id == btn_speak.id:
                 ok, msg = send_command("SPEAK")
-                set_status("speak command sent" if ok else msg, ok)
+                set_status("read answer command sent" if ok else msg, ok)
 
             elif button_id == btn_clear.id:
                 ok, msg = send_command("CLEAR")
