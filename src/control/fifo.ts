@@ -14,6 +14,7 @@ export type SimpleControlCommand =
   | "LIST_COMMANDS"
   | "SUMMARIZE"
   | "SPEAK_SUMMARY"
+  | "VISUALIZE_SESSION"
   | "QUIT";
 export type ControlCommand = SimpleControlCommand | { type: "PROMPT"; text: string };
 
@@ -110,6 +111,7 @@ export class FifoControlServer {
       "LIST_COMMANDS",
       "SUMMARIZE",
       "SPEAK_SUMMARY",
+      "VISUALIZE_SESSION",
       "QUIT",
     ]);
     if (simpleCommands.has(upper)) {

@@ -8,6 +8,7 @@ import subprocess
 import termuxgui as tg
 
 FIFO = os.path.expanduser("~/.local/state/assembly-pi/control.fifo")
+VIZ = os.path.expanduser("~/.local/state/assembly-pi/session-visualization.html")
 
 
 def stat_is_fifo(path: str) -> bool:
@@ -91,6 +92,18 @@ with tg.Connection() as c:
     btn_speak_summary.setmargin(6)
     btn_speak_summary.setlinearlayoutparams(1)
 
+    row_visual = tg.LinearLayout(a, root, False)
+
+    btn_visualize = tg.Button(a, "SESSION HTML", row_visual)
+    btn_visualize.settextsize(14)
+    btn_visualize.setmargin(6)
+    btn_visualize.setlinearlayoutparams(1)
+
+    btn_open_visual = tg.Button(a, "OPEN VISUALIZATION", row_visual)
+    btn_open_visual.settextsize(14)
+    btn_open_visual.setmargin(6)
+    btn_open_visual.setlinearlayoutparams(1)
+
     row_commands = tg.LinearLayout(a, root, False)
 
     btn_commands = tg.Button(a, "SLASH CMDS", row_commands)
@@ -122,7 +135,7 @@ with tg.Connection() as c:
 
     help_text = tg.TextView(
         a,
-        "Type slash commands in the prompt box, or tap SLASH CMDS to list local skills/templates. New/Continue switch Pi SDK sessions.",
+        "SESSION HTML prepares a visual readback of the current Pi session. OPEN VISUALIZATION opens it after it is ready.",
         root,
     )
     help_text.settextsize(12)
@@ -159,6 +172,17 @@ with tg.Connection() as c:
                 click("SUMMARIZE", "summary requested")
             elif button_id == btn_speak_summary.id:
                 click("SPEAK_SUMMARY", "speak summary requested")
+            elif button_id == btn_visualize.id:
+                click("VISUALIZE_SESSION", "session HTML requested")
+            elif button_id == btn_open_visual.id:
+                if os.path.exists(VIZ):
+                    try:
+                        subprocess.Popen(["termux-open", VIZ])
+                        set_status("opening visualization")
+                    except Exception as e:
+                        set_status(str(e), False)
+                else:
+                    set_status("prepare SESSION HTML first", False)
             elif button_id == btn_commands.id:
                 click("LIST_COMMANDS", "slash command list requested")
             elif button_id == btn_new.id:

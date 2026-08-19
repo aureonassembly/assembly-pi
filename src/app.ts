@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PiSdkTransport } from "./pi/transport.js";
+import { generateSessionVisualization } from "./pi/session-visualizer.js";
 import { listLocalSlashCommands } from "./pi/slash-commands.js";
 import { GroqSpeechToTextProvider } from "./providers/groq-stt.js";
 import { TermuxTtsProvider, normalizeSpeechText } from "./providers/termux-tts.js";
@@ -295,6 +296,22 @@ export class VoiceApp {
     }
   }
 
+  private async visualizeCurrentSession(): Promise<void> {
+    try {
+      this.clearError();
+      const info = await this.pi.getSessionInfo();
+      if (!info.sessionFile) throw new Error("Current Pi session has no session file yet.");
+      this.setState("PI_WORKING", "Building HTML session visualization…");
+      const path = await generateSessionVisualization(info.sessionFile);
+      this.transcript = "Session visualization";
+      this.response = `Visualization ready:\n${path}\n\nOpen it from the GUI with OPEN VISUALIZATION.`;
+      this.pushHistory("html", "session visualization ready");
+      this.setState("ANSWER_READY", "HTML visualization ready.");
+    } catch (err) {
+      this.fail(`Visualization failed: ${errorMessage(err)}`);
+    }
+  }
+
   private async summarizeLastAnswer(speak = false): Promise<void> {
     if (!this.response.trim()) {
       this.pushHistory("summary", "No answer to summarize yet.");
@@ -458,6 +475,9 @@ export class VoiceApp {
         return;
       case "SPEAK_SUMMARY":
         void this.summarizeLastAnswer(true);
+        return;
+      case "VISUALIZE_SESSION":
+        void this.visualizeCurrentSession();
         return;
       case "QUIT":
         void this.dispose().finally(() => process.exit(0));
