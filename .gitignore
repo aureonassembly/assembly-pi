@@ -4,3 +4,4 @@ dist/
 npm-debug.log*
 __pycache__/
 *.pyc
+.env

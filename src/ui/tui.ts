@@ -118,9 +118,9 @@ function buildControls(state: AppState, ttsMode: TtsMode): string {
     case "READY":
       return "R/Space record   E edit last   X clear   S speak answer   ↑↓ scroll   Ctrl+C quit";
     case "LISTENING":
-      return "R/Space stop     pauses okay   Ctrl+C quit";
+      return "R/Space stop     recording locally   Ctrl+C quit";
     case "TRANSCRIBING":
-      return "Finalizing...    pauses okay   Ctrl+C quit";
+      return "Transcribing with Groq... Ctrl+C quit";
     case "CONFIRMING":
       return "Enter send       E edit       R retry record   X cancel   Ctrl+C quit";
     case "EDITING":
@@ -165,12 +165,12 @@ export function renderScreen(state: RenderState): string {
 
   if (state.state === "LISTENING") {
     lines.push(`${C.cyan}${C.bold}Recording…${C.reset}`);
-    lines.push(`Speak at your own pace. Short pauses are okay; Space stops.`);
+    lines.push(`Speak at your own pace. Space stops, then Groq transcribes.`);
   }
 
   if (state.state === "TRANSCRIBING") {
     lines.push(`${C.cyan}${C.bold}Transcribing…${C.reset}`);
-    lines.push(`Android STT may restart on silence until you press Space.`);
+    lines.push(`Uploading recorded audio to Groq Whisper.`);
   }
 
   if (state.state === "CONFIRMING" || state.state === "EDITING" || state.state === "ANSWER_READY" || state.state === "SENDING" || state.state === "PI_WORKING") {

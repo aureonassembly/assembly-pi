@@ -18,31 +18,25 @@ Result:
 - file was valid after waiting for finalization
 - `ffprobe` reported AAC audio in an M4A container
 
-### Android speech recognition
+### Speech recognition
 
-Command tested:
+Initial path tested:
 
 ```bash
 termux-speech-to-text
 ```
 
-Observed in the harness:
+Observed:
 
 - live probe returned a transcript and partials
 - observed latency was about 9 seconds
-- output format was plain text on stdout
+- later GUI use was unreliable: Android STT could end on silence or return no transcript
 
-Probe result:
+Decision:
 
-```text
-test test test
-```
-
-Conclusion:
-
-- built-in Android STT works on this phone
-- the MVP uses it as the primary STT provider
-- empty-output and single-retry handling are in place, with a clearer failure message if Android STT stays silent
+- active voice STT is now Groq Whisper
+- capture uses `termux-microphone-record` locally, then uploads the recorded M4A to Groq `/openai/v1/audio/transcriptions`
+- required key: `GROQ_API_KEY`
 
 ### TTS
 
@@ -91,4 +85,4 @@ Observed CLI behavior:
 - The Pi backend is a live SDK session; the UI now surfaces the session ID/file on startup.
 - TTS starts OFF.
 - The app keeps transcript confirmation before send.
-- Speech capture is now a continuous push-to-talk session: Android STT may end on silence, but the UI auto-restarts it until Space is pressed again.
+- Speech capture is now local push-to-talk recording followed by Groq Whisper transcription, so breathing pauses do not cut off capture.

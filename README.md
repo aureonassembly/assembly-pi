@@ -2,6 +2,24 @@
 
 Terminal-first voice UI around Pi for Termux.
 
+## Groq voice transcription setup
+
+Voice transcription now uses Groq Whisper instead of Android `termux-speech-to-text`.
+
+Create a local env file:
+
+```bash
+mkdir -p ~/.config/assembly-pi
+printf 'GROQ_API_KEY=your_groq_key_here\n' > ~/.config/assembly-pi/env
+chmod 600 ~/.config/assembly-pi/env
+```
+
+Optional model override:
+
+```bash
+printf 'GROQ_STT_MODEL=whisper-large-v3-turbo\n' >> ~/.config/assembly-pi/env
+```
+
 ## Run
 
 Foreground backend:
@@ -57,10 +75,11 @@ The GUI has real Android buttons for two main paths:
 Fast path:
 
 1. press `🎙 VOICE ASK PI`
-2. speak
+2. speak at your own pace; pauses are fine because audio is recorded locally
 3. press it again
-4. transcript is sent automatically to Pi
-5. answer appears in terminal/tmux backend
+4. recorded audio is sent to Groq Whisper for transcription
+5. transcript is sent automatically to Pi
+6. answer appears in terminal/tmux backend
 
 Review path:
 
@@ -125,4 +144,4 @@ The terminal app must be running (`npm run dev`) for the buttons to control it.
 
 - Pi transport uses `@earendil-works/pi-coding-agent` SDK.
 - Recording primitives were verified separately with `termux-microphone-record`.
-- Android STT is best-effort; if it returns nothing, the UI reports it cleanly.
+- Voice STT uses local Termux microphone recording plus Groq Whisper transcription.

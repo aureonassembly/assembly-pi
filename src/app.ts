@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PiSdkTransport } from "./pi/transport.js";
-import { TermuxSpeechToTextProvider } from "./providers/termux-stt.js";
+import { GroqSpeechToTextProvider } from "./providers/groq-stt.js";
 import { TermuxTtsProvider, normalizeSpeechText } from "./providers/termux-tts.js";
 import { renderScreen } from "./ui/tui.js";
 import type { ControlCommand } from "./control/fifo.js";
@@ -40,7 +40,7 @@ export class VoiceApp {
   private running = true;
   private piSessionId?: string;
 
-  private readonly stt = new TermuxSpeechToTextProvider();
+  private readonly stt = new GroqSpeechToTextProvider();
   private readonly tts = new TermuxTtsProvider();
   private readonly pi: PiSdkTransport;
 
@@ -164,7 +164,7 @@ export class VoiceApp {
           this.pushHistory("stt", `pause ${result.durationMs}ms`);
           if (!segments.length && this.captureQuietBursts >= 3) {
             throw new Error(
-              "Android speech recognition returned no transcript. Try again or check microphone permission.",
+              "Groq returned no transcript. Try again closer to the microphone.",
             );
           }
         }
