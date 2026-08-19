@@ -40,13 +40,37 @@ export class TermuxSpeechToTextProvider implements STTProvider {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
+      let settled = false;
+
+      const finish = (code: number | null, aborted = false) => {
+        if (settled) return;
+        settled = true;
+        if (signal) signal.removeEventListener("abort", abortChild);
+
+        const text = stdout.trim().replace(/\s+/g, " ");
+        if (code !== 0 && !aborted) {
+          reject(new Error(stderr.trim() || `termux-speech-to-text exited with code ${code}`));
+          return;
+        }
+
+        resolve({
+          text,
+          rawOutput: stdout,
+          source: aborted ? "termux-speech-to-text:stopped" : "termux-speech-to-text",
+          durationMs: Date.now() - started,
+          partials,
+        });
+      };
+
       const abortChild = () => {
         try {
           child.kill("SIGINT");
-          setTimeout(() => child.kill("SIGTERM"), 400);
+          setTimeout(() => child.kill("SIGTERM"), 250);
+          setTimeout(() => child.kill("SIGKILL"), 600);
         } catch {
           // ignore
         }
+        setTimeout(() => finish(null, true), 900);
       };
 
       if (signal) {
@@ -70,24 +94,14 @@ export class TermuxSpeechToTextProvider implements STTProvider {
       });
 
       child.on("error", (err) => {
+        if (settled) return;
+        settled = true;
+        if (signal) signal.removeEventListener("abort", abortChild);
         reject(new Error(`${err.message}${stderr.trim() ? `: ${stderr.trim()}` : ""}`));
       });
 
-      child.on("close", (code, _signal) => {
-        const text = stdout.trim().replace(/\s+/g, " ");
-        if (signal) signal.removeEventListener("abort", abortChild);
-        if (code !== 0 && !signal?.aborted) {
-          reject(new Error(stderr.trim() || `termux-speech-to-text exited with code ${code}`));
-          return;
-        }
-
-        resolve({
-          text,
-          rawOutput: stdout,
-          source: "termux-speech-to-text",
-          durationMs: Date.now() - started,
-          partials,
-        });
+      child.on("close", (code) => {
+        finish(code, Boolean(signal?.aborted));
       });
     });
   }
