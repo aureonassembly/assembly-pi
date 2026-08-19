@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, stat, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname } from "node:path";
 import type { RecordingSession } from "../types.js";
@@ -8,17 +8,39 @@ async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForStableFile(filePath: string, timeoutMs = 3000): Promise<void> {
+async function runCommand(command: string, args: string[], ignoreFailure = false): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => { stdout += chunk; });
+    child.stderr?.on("data", (chunk: string) => { stderr += chunk; });
+    child.on("error", (err) => {
+      if (ignoreFailure) resolve(stdout);
+      else reject(err);
+    });
+    child.on("close", (code) => {
+      if (code && code !== 0 && !ignoreFailure) reject(new Error(stderr.trim() || `${command} exited ${code}`));
+      else resolve(stdout.trim() || stderr.trim());
+    });
+  });
+}
+
+async function waitForStableFile(filePath: string, timeoutMs = 5000): Promise<number> {
   const started = Date.now();
   let previous = -1;
   let stableCount = 0;
+  let lastSize = 0;
 
   while (Date.now() - started < timeoutMs) {
     try {
       const size = (await stat(filePath)).size;
+      lastSize = size;
       if (size > 0 && size === previous) {
         stableCount += 1;
-        if (stableCount >= 2) return;
+        if (stableCount >= 3) return size;
       } else {
         stableCount = 0;
       }
@@ -26,8 +48,10 @@ async function waitForStableFile(filePath: string, timeoutMs = 3000): Promise<vo
     } catch {
       stableCount = 0;
     }
-    await delay(150);
+    await delay(200);
   }
+
+  return lastSize;
 }
 
 export class TermuxMicrophoneRecordingSession implements RecordingSession {
@@ -41,33 +65,28 @@ export class TermuxMicrophoneRecordingSession implements RecordingSession {
 
   async start(): Promise<void> {
     await mkdir(dirname(this.path), { recursive: true });
-    if (existsSync(this.path)) {
-      // Leave any prior file intact only after the user has chosen a new path.
-      // We overwrite here intentionally because each recording path is unique.
+    await runCommand("termux-microphone-record", ["-q"], true);
+    await unlink(this.path).catch(() => undefined);
+
+    const output = await runCommand("termux-microphone-record", ["-f", this.path, "-l", "0"]);
+    if (!/Recording started/i.test(output)) {
+      throw new Error(output || "termux-microphone-record did not report that recording started");
     }
 
-    const child = spawn("termux-microphone-record", ["-f", this.path, "-l", "0"], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    child.stdout?.setEncoding("utf8");
-    child.stderr?.setEncoding("utf8");
-    child.on("error", () => {
-      // Ignore here; the UI will discover failures when the stop workflow checks the file.
-    });
-
     this.active = true;
-    await delay(250);
+    await delay(750);
   }
 
   async stop(): Promise<void> {
     if (!this.active) return;
-    await new Promise<void>((resolve) => {
-      const child = spawn("termux-microphone-record", ["-q"], { stdio: ["ignore", "ignore", "ignore"] });
-      child.on("close", () => resolve());
-      child.on("error", () => resolve());
-    });
-    await waitForStableFile(this.path, 4000);
+    await runCommand("termux-microphone-record", ["-q"], true);
+    const size = await waitForStableFile(this.path, 6000);
     this.active = false;
+
+    if (!existsSync(this.path) || size <= 128) {
+      throw new Error(
+        `No usable microphone recording was created at ${this.path}. Try holding VOICE ASK longer before stopping.`,
+      );
+    }
   }
 }

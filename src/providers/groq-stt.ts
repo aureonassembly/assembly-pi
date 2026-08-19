@@ -1,4 +1,4 @@
-import { readFile, unlink } from "node:fs/promises";
+import { readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TermuxMicrophoneRecordingSession } from "../voice/controller.js";
@@ -35,6 +35,10 @@ export class GroqSpeechToTextProvider implements STTProvider {
 
     try {
       onPartial?.("uploading to Groq Whisper…");
+      const audioStat = await stat(audioPath).catch(() => undefined);
+      if (!audioStat || audioStat.size <= 128) {
+        throw new Error(`Microphone recording was not created or was empty: ${audioPath}`);
+      }
       const audio = await readFile(audioPath);
       const form = new FormData();
       form.append("file", new Blob([audio], { type: "audio/mp4" }), "recording.m4a");
