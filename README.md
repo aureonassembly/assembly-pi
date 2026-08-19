@@ -14,10 +14,11 @@ printf 'GROQ_API_KEY=your_groq_key_here\n' > ~/.config/assembly-pi/env
 chmod 600 ~/.config/assembly-pi/env
 ```
 
-Optional model override:
+Optional model/voice overrides:
 
 ```bash
 printf 'GROQ_STT_MODEL=whisper-large-v3-turbo\n' >> ~/.config/assembly-pi/env
+printf 'EDGE_TTS_VOICE=en-US-AriaNeural\n' >> ~/.config/assembly-pi/env
 ```
 
 ## Run
@@ -93,7 +94,7 @@ The GUI now has two main actions plus utilities:
 
 Utilities:
 
-- `READ LAST ANSWER`: speaks the latest Pi answer using Android TTS
+- `READ LAST ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
 - `CLEAR`: clears current transcript/answer view
 - `QUIT BACKEND`: exits the running backend
 
