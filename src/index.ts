@@ -1,12 +1,14 @@
 import readline from "node:readline";
 import { VoiceApp } from "./app.js";
 import { DEFAULT_FIFO_PATH, ensureControlFifo, FifoControlServer } from "./control/fifo.js";
+import { loadLocalEnv } from "./config/env.js";
 
 function restoreTerminal(): void {
   process.stdout.write("\x1b[0m\x1b[?25h\n");
 }
 
 async function main(): Promise<void> {
+  loadLocalEnv(process.cwd());
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error("assembly-pi requires a TTY");
   }
