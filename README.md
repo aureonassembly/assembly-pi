@@ -30,7 +30,17 @@ npm install
 npm run dev
 ```
 
-Recommended split tmux stack: backend + GUI launcher panes:
+Recommended picker flow: choose which saved Pi session to continue, then open backend + GUI panes:
+
+```bash
+cd ~/assembly-pi
+./scripts/start-stack-session-picker.sh
+tmux attach -t assembly-pi-stack
+```
+
+Press `Enter` at the picker for the latest session, choose a number, paste a session ID prefix, or paste a `.jsonl` session path.
+
+Direct split tmux stack without picking a session is also available:
 
 ```bash
 cd ~/assembly-pi
@@ -46,6 +56,13 @@ cd ~/assembly-pi
 ```
 
 Then launch `assembly-pi-stack` from Termux:Widget/shortcut.
+
+To launch the backend against an exact session file from another script:
+
+```bash
+cd ~/assembly-pi
+ASSEMBLY_PI_SESSION="$HOME/.pi/agent/sessions/.../session.jsonl" npm run dev
+```
 
 Backend-only tmux mode is also available:
 
@@ -98,7 +115,7 @@ Utilities:
 - `SUMMARY`: asks Pi to summarize the latest answer
 - `SPEAK SUMMARY`: asks Pi for a short spoken summary and reads it aloud
 - `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session in `~/storage/downloads/assembly-pi-session-visualization.html`
-- `OPEN VISUALIZATION`: opens the generated HTML visualization after it is ready
+- `OPEN VISUALIZATION`: opens the generated HTML visualization using an absolute `file://` URL after it is ready
 - `SLASH CMDS`: lists local prompt-template and skill slash commands in the backend terminal
 - `NEW SESSION`: starts a fresh Pi SDK session
 - `CONTINUE`: reattaches to the latest saved Pi session for this project

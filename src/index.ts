@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   process.stdin.setRawMode(true);
   process.stdin.resume();
 
-  const app = new VoiceApp(process.cwd());
+  const app = new VoiceApp(process.cwd(), process.env.ASSEMBLY_PI_SESSION);
   const fifoPath = await ensureControlFifo(DEFAULT_FIFO_PATH);
   const control = new FifoControlServer(fifoPath, (command) => app.onControlCommand(command));
   control.start();

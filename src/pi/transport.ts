@@ -8,8 +8,11 @@ export class PiSdkTransport implements PiTransport {
   private session: SessionHandle | null = null;
   private active = false;
 
-  constructor(private readonly cwd: string) {
-    this.ready = this.init("continue");
+  constructor(
+    private readonly cwd: string,
+    private readonly initialSession?: string,
+  ) {
+    this.ready = this.init(initialSession ? "open" : "continue", initialSession);
   }
 
   async waitReady(): Promise<void> {
@@ -42,15 +45,22 @@ export class PiSdkTransport implements PiTransport {
     };
   }
 
-  private async init(mode: "new" | "continue"): Promise<void> {
+  private async init(mode: "new" | "continue" | "open", sessionPath?: string): Promise<void> {
     if (this.session) {
       this.session.dispose();
       this.session = null;
     }
 
+    const sessionManager =
+      mode === "new"
+        ? SessionManager.create(this.cwd)
+        : mode === "open" && sessionPath
+          ? SessionManager.open(sessionPath)
+          : SessionManager.continueRecent(this.cwd);
+
     const { session, modelFallbackMessage } = await createAgentSession({
-      cwd: this.cwd,
-      sessionManager: mode === "new" ? SessionManager.create(this.cwd) : SessionManager.continueRecent(this.cwd),
+      cwd: sessionManager.getCwd() || this.cwd,
+      sessionManager,
       thinkingLevel: "off",
     });
 

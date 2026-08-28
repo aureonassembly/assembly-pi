@@ -47,8 +47,11 @@ export class VoiceApp {
   private readonly tts = new TermuxTtsProvider();
   private readonly pi: PiSdkTransport;
 
-  constructor(private readonly cwd: string) {
-    this.pi = new PiSdkTransport(cwd);
+  constructor(
+    private readonly cwd: string,
+    initialSession?: string,
+  ) {
+    this.pi = new PiSdkTransport(cwd, initialSession);
   }
 
   async start(): Promise<void> {
