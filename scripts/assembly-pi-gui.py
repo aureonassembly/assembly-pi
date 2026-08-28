@@ -8,8 +8,13 @@ import subprocess
 import termuxgui as tg
 
 FIFO = os.path.expanduser("~/.local/state/assembly-pi/control.fifo")
-DOWNLOADS = os.path.expanduser("~/storage/downloads")
-VIZ = os.path.join(DOWNLOADS if os.path.isdir(DOWNLOADS) else os.path.expanduser("~"), "assembly-pi-session-visualization.html")
+PUBLIC_DOWNLOADS = "/storage/emulated/0/Download"
+TERMUX_DOWNLOADS = os.path.expanduser("~/storage/downloads")
+DOWNLOADS = PUBLIC_DOWNLOADS if os.path.isdir(PUBLIC_DOWNLOADS) else TERMUX_DOWNLOADS
+VIZ_DIR = os.path.abspath(DOWNLOADS if os.path.isdir(DOWNLOADS) else os.path.expanduser("~"))
+VIZ = os.path.join(VIZ_DIR, "assembly-pi-session-visualization.html")
+VIZ_URL = "http://127.0.0.1:8765/assembly-pi-session-visualization.html"
+VIZ_SERVER = None
 
 
 def stat_is_fifo(path: str) -> bool:
@@ -43,6 +48,17 @@ def toast(message: str) -> None:
         subprocess.run(["termux-toast", message], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
+
+
+def ensure_visualization_server() -> None:
+    global VIZ_SERVER
+    if VIZ_SERVER is not None and VIZ_SERVER.poll() is None:
+        return
+    VIZ_SERVER = subprocess.Popen(
+        ["python3", "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", VIZ_DIR],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 with tg.Connection() as c:
@@ -178,10 +194,15 @@ with tg.Connection() as c:
             elif button_id == btn_open_visual.id:
                 if os.path.exists(VIZ):
                     try:
-                        subprocess.Popen(["termux-open", VIZ])
-                        set_status("opening visualization")
-                    except Exception as e:
-                        set_status(str(e), False)
+                        ensure_visualization_server()
+                        subprocess.Popen(["termux-open-url", VIZ_URL])
+                        set_status("opening visualization at " + VIZ_URL)
+                    except Exception:
+                        try:
+                            subprocess.Popen(["termux-open", VIZ])
+                            set_status("opening visualization file")
+                        except Exception as e:
+                            set_status(str(e), False)
                 else:
                     set_status("prepare SESSION HTML first", False)
             elif button_id == btn_commands.id:

@@ -1,12 +1,36 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+
+const VISUALIZATION_FILENAME = "assembly-pi-session-visualization.html";
+
+function publicAndroidDownloads(): string | undefined {
+  const candidates = [
+    process.env.ASSEMBLY_PI_VISUALIZATION_DIR,
+    "/storage/emulated/0/Download",
+    "/sdcard/Download",
+  ].filter(Boolean) as string[];
+
+  return candidates.find((path) => existsSync(path));
+}
 
 function defaultVisualizationPath(): string {
   const home = process.env.HOME ?? ".";
-  const downloads = join(home, "storage/downloads");
-  if (existsSync(downloads)) return join(downloads, "assembly-pi-session-visualization.html");
-  return join(home, "assembly-pi-session-visualization.html");
+  const publicDownloads = publicAndroidDownloads();
+  if (publicDownloads) return join(publicDownloads, VISUALIZATION_FILENAME);
+  const termuxDownloads = join(home, "storage/downloads");
+  if (existsSync(termuxDownloads)) return join(termuxDownloads, VISUALIZATION_FILENAME);
+  return join(home, VISUALIZATION_FILENAME);
+}
+
+function toFileUri(path: string): string {
+  return `file://${resolve(path).replace(/\\/g, "/")}`;
+}
+
+function localHttpUri(path: string): string | undefined {
+  const resolved = resolve(path).replace(/\\/g, "/");
+  if (!resolved.endsWith("/Download/assembly-pi-session-visualization.html")) return undefined;
+  return "http://127.0.0.1:8765/assembly-pi-session-visualization.html";
 }
 
 export const SESSION_VISUALIZATION_PATH = defaultVisualizationPath();
@@ -105,10 +129,13 @@ function parseSession(jsonl: string): { sessionId?: string; cwd?: string; entrie
   return { sessionId, cwd, entries };
 }
 
-function renderHtml(sessionFile: string, parsed: ReturnType<typeof parseSession>): string {
+function renderHtml(sessionFile: string, outputPath: string, parsed: ReturnType<typeof parseSession>): string {
   const userCount = parsed.entries.filter((e) => e.role === "user").length;
   const assistantCount = parsed.entries.filter((e) => e.role === "assistant").length;
   const toolCount = parsed.entries.filter((e) => e.role === "toolResult").length;
+  const sourceUri = toFileUri(sessionFile);
+  const outputUri = toFileUri(outputPath);
+  const httpUri = localHttpUri(outputPath);
 
   const cards = parsed.entries
     .map((entry, index) => {
@@ -157,11 +184,16 @@ footer { color:var(--muted); padding:20px 12px 40px; text-align:center; font-siz
     <span class="stat">Entries: ${parsed.entries.length}</span>
   </div>
   <div class="stats" style="margin-top:8px"><span class="stat">cwd: ${escapeHtml(parsed.cwd ?? "")}</span></div>
+  <div class="stats" style="margin-top:8px">
+    <span class="stat">Source: <a href="${escapeHtml(sourceUri)}">open raw session</a></span>
+    ${httpUri ? `<span class="stat">Chrome URL: <a href="${escapeHtml(httpUri)}">${escapeHtml(httpUri)}</a></span>` : ""}
+    <span class="stat">File path: <a href="${escapeHtml(outputUri)}">open HTML file</a></span>
+  </div>
 </header>
 <main>
 ${cards || "<p>No messages found.</p>"}
 </main>
-<footer>Source: ${escapeHtml(sessionFile)}<br/>Generated: ${escapeHtml(new Date().toLocaleString())}</footer>
+<footer>Source: <a href="${escapeHtml(sourceUri)}">${escapeHtml(sessionFile)}</a><br/>Generated: ${escapeHtml(new Date().toLocaleString())}</footer>
 </body>
 </html>`;
 }
@@ -170,6 +202,6 @@ export async function generateSessionVisualization(sessionFile: string, outputPa
   const content = await readFile(sessionFile, "utf8");
   const parsed = parseSession(content);
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, renderHtml(sessionFile, parsed), "utf8");
+  await writeFile(outputPath, renderHtml(sessionFile, outputPath, parsed), "utf8");
   return outputPath;
 }
