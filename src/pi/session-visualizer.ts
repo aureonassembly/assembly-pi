@@ -3,6 +3,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const VISUALIZATION_FILENAME = "assembly-pi-session-visualization.html";
+const GITHUB_ISSUE_URL = "https://github.com/aureonassembly/assembly-pi/issues/5";
+const GITHUB_PR_URL = "https://github.com/aureonassembly/assembly-pi/pull/6";
 
 function publicAndroidDownloads(): string | undefined {
   const candidates = [
@@ -187,6 +189,8 @@ footer { color:var(--muted); padding:20px 12px 40px; text-align:center; font-siz
   <div class="stats" style="margin-top:8px">
     <span class="stat">Source: <a href="${escapeHtml(sourceUri)}">open raw session</a></span>
     ${httpUri ? `<span class="stat">Chrome URL: <a href="${escapeHtml(httpUri)}">${escapeHtml(httpUri)}</a></span>` : ""}
+    <span class="stat">Issue: <a href="${GITHUB_ISSUE_URL}">#5</a></span>
+    <span class="stat">PR: <a href="${GITHUB_PR_URL}">#6</a></span>
     <span class="stat">File path: <a href="${escapeHtml(outputUri)}">open HTML file</a></span>
   </div>
 </header>
