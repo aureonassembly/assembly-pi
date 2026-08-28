@@ -15,9 +15,11 @@ function parseEnvLine(line: string): [string, string] | undefined {
 }
 
 export function loadLocalEnv(cwd: string): void {
+  const home = process.env.HOME ?? cwd;
   const candidates = [
     join(cwd, ".env"),
-    join(process.env.HOME ?? cwd, ".config/assembly-pi/env"),
+    join(home, ".env"),
+    join(home, ".config/assembly-pi/env"),
   ];
 
   for (const path of candidates) {
