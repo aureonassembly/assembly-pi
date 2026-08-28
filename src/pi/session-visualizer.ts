@@ -3,8 +3,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const VISUALIZATION_FILENAME = "assembly-pi-session-visualization.html";
-const GITHUB_ISSUE_URL = "https://github.com/aureonassembly/assembly-pi/issues/5";
-const GITHUB_PR_URL = "https://github.com/aureonassembly/assembly-pi/pull/6";
+const GITHUB_MAIN_URL = "https://github.com/aureonassembly/assembly-pi/tree/main";
+const GITHUB_VISUALIZATION_ISSUE_URL = "https://github.com/aureonassembly/assembly-pi/issues/5";
+const GITHUB_VISUALIZATION_PR_URL = "https://github.com/aureonassembly/assembly-pi/pull/6";
+const GITHUB_VOICE_ISSUE_URL = "https://github.com/aureonassembly/assembly-pi/issues/7";
+const GITHUB_VOICE_PR_URL = "https://github.com/aureonassembly/assembly-pi/pull/8";
+const GITHUB_PROMOTION_ISSUE_URL = "https://github.com/aureonassembly/assembly-pi/issues/9";
 
 function publicAndroidDownloads(): string | undefined {
   const candidates = [
@@ -189,8 +193,10 @@ footer { color:var(--muted); padding:20px 12px 40px; text-align:center; font-siz
   <div class="stats" style="margin-top:8px">
     <span class="stat">Source: <a href="${escapeHtml(sourceUri)}">open raw session</a></span>
     ${httpUri ? `<span class="stat">Chrome URL: <a href="${escapeHtml(httpUri)}">${escapeHtml(httpUri)}</a></span>` : ""}
-    <span class="stat">Issue: <a href="${GITHUB_ISSUE_URL}">#5</a></span>
-    <span class="stat">PR: <a href="${GITHUB_PR_URL}">#6</a></span>
+    <span class="stat">Repo home: <a href="${GITHUB_MAIN_URL}">main</a></span>
+    <span class="stat">Visualization: <a href="${GITHUB_VISUALIZATION_ISSUE_URL}">issue #5</a> / <a href="${GITHUB_VISUALIZATION_PR_URL}">PR #6</a></span>
+    <span class="stat">Voice Ask: <a href="${GITHUB_VOICE_ISSUE_URL}">issue #7</a> / <a href="${GITHUB_VOICE_PR_URL}">PR #8</a></span>
+    <span class="stat">Main promotion: <a href="${GITHUB_PROMOTION_ISSUE_URL}">issue #9</a></span>
     <span class="stat">File path: <a href="${escapeHtml(outputUri)}">open HTML file</a></span>
   </div>
 </header>
