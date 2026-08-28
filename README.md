@@ -114,8 +114,8 @@ Utilities:
 - `READ ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
 - `SUMMARY`: asks Pi to summarize the latest answer
 - `SPEAK SUMMARY`: asks Pi for a short spoken summary and reads it aloud
-- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session in `~/storage/downloads/assembly-pi-session-visualization.html`
-- `OPEN VISUALIZATION`: opens the generated HTML visualization using an absolute `file://` URL after it is ready
+- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session at `/storage/emulated/0/Download/assembly-pi-session-visualization.html` on Android, with Termux/home fallbacks elsewhere
+- `OPEN VISUALIZATION`: starts a local phone-only HTTP server when needed and opens `http://127.0.0.1:8765/assembly-pi-session-visualization.html` in Chrome/browser
 - `SLASH CMDS`: lists local prompt-template and skill slash commands in the backend terminal
 - `NEW SESSION`: starts a fresh Pi SDK session
 - `CONTINUE`: reattaches to the latest saved Pi session for this project
@@ -177,12 +177,13 @@ The terminal app must be running (`npm run dev`) for the buttons to control it.
 
 ## What it does
 
-1. captures speech with Termux/Android STT
-2. shows the transcript before sending
-3. lets you edit/confirm it
+1. captures speech with `termux-microphone-record`
+2. transcribes the local recording with Groq Whisper using `GROQ_API_KEY`
+3. shows the transcript before sending for keyboard/TUI flows, or sends automatically from `VOICE ASK PI`
 4. sends it to Pi through the SDK transport
 5. streams Pi’s response back into the terminal
-6. optionally speaks the answer with Android TTS
+6. optionally speaks the answer with Android/Edge TTS fallback paths
+7. generates a Chrome-openable session visualization through a local `127.0.0.1:8765` HTTP URL
 
 ## Notes
 
