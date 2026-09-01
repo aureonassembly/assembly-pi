@@ -5,6 +5,8 @@ import base64
 import os
 import stat
 import subprocess
+import threading
+import time
 import termuxgui as tg
 
 FIFO = os.path.expanduser("~/.local/state/assembly-pi/control.fifo")
@@ -15,6 +17,25 @@ VIZ_DIR = os.path.abspath(DOWNLOADS if os.path.isdir(DOWNLOADS) else os.path.exp
 VIZ = os.path.join(VIZ_DIR, "assembly-pi-session-visualization.html")
 VIZ_URL = "http://127.0.0.1:8765/assembly-pi-session-visualization.html"
 VIZ_SERVER = None
+LAST_VIZ_PATH = os.path.expanduser("~/.local/state/assembly-pi/last-visualization-path.txt")
+
+
+def write_last_visualization_path(path: str) -> None:
+    try:
+        os.makedirs(os.path.dirname(LAST_VIZ_PATH), exist_ok=True)
+        with open(LAST_VIZ_PATH, "w", encoding="utf-8") as f:
+            f.write(path + "\n")
+    except Exception:
+        pass
+
+
+def read_last_visualization_path() -> str:
+    try:
+        with open(LAST_VIZ_PATH, "r", encoding="utf-8") as f:
+            path = f.read().strip()
+            return path or VIZ
+    except Exception:
+        return VIZ
 
 
 def stat_is_fifo(path: str) -> bool:
@@ -43,6 +64,14 @@ def send_prompt(text: str) -> tuple[bool, str]:
     return send_command("PROMPT\t" + encoded)
 
 
+def send_status_feedback(text: str) -> None:
+    try:
+        status.settext(text)
+        status.settextcolor(0xff86efac)
+    except Exception:
+        pass
+
+
 def toast(message: str) -> None:
     try:
         subprocess.run(["termux-toast", message], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -55,7 +84,7 @@ def ensure_visualization_server() -> None:
     if VIZ_SERVER is not None and VIZ_SERVER.poll() is None:
         return
     VIZ_SERVER = subprocess.Popen(
-        ["python3", "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", VIZ_DIR],
+        ["python3", "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", os.path.dirname(read_last_visualization_path())],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -73,11 +102,29 @@ with tg.Connection() as c:
     title.setmargin(12)
     title.setgravity(1, 0)
 
-    status = tg.TextView(a, "Backend: tmux attach -t assembly-pi-stack", root)
+    status = tg.TextView(a, "Status: booting", root)
     status.settextsize(14)
-    status.settextcolor(0xffffffff)
+    status.settextcolor(0xff86efac)
     status.setmargin(6)
     status.setgravity(1, 0)
+
+    agent_status = tg.TextView(a, "Agent: idle", root)
+    agent_status.settextsize(13)
+    agent_status.settextcolor(0xffcbd5e1)
+    agent_status.setmargin(4)
+    agent_status.setgravity(1, 0)
+
+    action_status = tg.TextView(a, "Action: waiting for input", root)
+    action_status.settextsize(13)
+    action_status.settextcolor(0xffcbd5e1)
+    action_status.setmargin(4)
+    action_status.setgravity(1, 0)
+
+    visualization_status = tg.TextView(a, "Visualization: idle", root)
+    visualization_status.settextsize(13)
+    visualization_status.settextcolor(0xffcbd5e1)
+    visualization_status.setmargin(4)
+    visualization_status.setgravity(1, 0)
 
     prompt = tg.EditText(a, "", root, singleline=False)
     prompt.settextsize(18)
@@ -165,9 +212,48 @@ with tg.Connection() as c:
         status.settextcolor(0xff86efac if ok else 0xfffca5a5)
         toast(message)
 
-    def click(command: str, ok_text: str) -> None:
+    def set_agent(agent: str, action: str, ok: bool = True) -> None:
+        agent_status.settext(f"Agent: {agent}")
+        action_status.settext(f"Action: {action}")
+        color = 0xff86efac if ok else 0xfffca5a5
+        agent_status.settextcolor(color)
+        action_status.settextcolor(color)
+        set_status(f"{agent} · {action}", ok)
+
+    visualization_watch_token = {"value": 0}
+
+    def set_visualization_status(message: str, ok: bool = True) -> None:
+        visualization_status.settext("Visualization: " + message)
+        visualization_status.settextcolor(0xff86efac if ok else 0xfffca5a5)
+
+    def watch_visualization_finished(started_at: float, token: int) -> None:
+        deadline = time.time() + 90
+        while time.time() < deadline and visualization_watch_token["value"] == token:
+            for candidate in (read_last_visualization_path(), VIZ):
+                try:
+                    if os.path.exists(candidate) and os.path.getmtime(candidate) >= started_at:
+                        set_visualization_status("finished — ready to open")
+                        set_agent("Nyro", "session HTML finished; OPEN VISUALIZATION is ready")
+                        return
+                except Exception:
+                    pass
+            time.sleep(0.75)
+        if visualization_watch_token["value"] == token:
+            set_visualization_status("still waiting; check backend if this stays here", False)
+
+    def start_visualization_watch(started_at: float) -> None:
+        visualization_watch_token["value"] += 1
+        token = visualization_watch_token["value"]
+        set_visualization_status("generating…")
+        thread = threading.Thread(target=watch_visualization_finished, args=(started_at, token), daemon=True)
+        thread.start()
+
+    def click(command: str, ok_text: str, agent: str = "Synth", action: str | None = None) -> None:
         ok, msg = send_command(command)
-        set_status(ok_text if ok else msg, ok)
+        display = (action or ok_text) if ok else msg
+        set_agent(agent, display, ok)
+        if ok and ok_text.startswith("session HTML"):
+            set_status("Visualization generation requested…")
 
     for ev in c.events():
         if ev.type == tg.Event.destroy:
@@ -180,38 +266,48 @@ with tg.Connection() as c:
                 ok, msg = send_prompt(prompt.gettext())
                 if ok:
                     prompt.settext("")
-                set_status("typed prompt sent to Pi" if ok else msg, ok)
+                set_agent("Synth", "sending typed prompt" if ok else msg, ok)
             elif button_id == btn_voice_ask.id:
-                click("VOICE_ASK", "voice ask toggle sent")
+                click("VOICE_ASK", "voice ask toggle sent", "Synth", "toggling voice capture")
             elif button_id == btn_speak.id:
-                click("SPEAK", "read answer command sent")
+                click("SPEAK", "read answer command sent", "Synth", "reading last answer")
             elif button_id == btn_summary.id:
-                click("SUMMARIZE", "summary requested")
+                click("SUMMARIZE", "summary requested", "Nyro", "summarizing the current session")
             elif button_id == btn_speak_summary.id:
-                click("SPEAK_SUMMARY", "speak summary requested")
+                click("SPEAK_SUMMARY", "speak summary requested", "JamAI", "speaking the summary")
             elif button_id == btn_visualize.id:
-                click("VISUALIZE_SESSION", "session HTML requested")
+                started_at = time.time()
+                ok, msg = send_command("VISUALIZE_SESSION")
+                if ok:
+                    write_last_visualization_path(VIZ)
+                    set_agent("Nyro", "building session HTML")
+                    set_status("Visualization generation requested…")
+                    start_visualization_watch(started_at)
+                else:
+                    set_agent("Nyro", msg, False)
+                    set_visualization_status("request failed", False)
             elif button_id == btn_open_visual.id:
                 if os.path.exists(VIZ):
                     try:
+                        write_last_visualization_path(VIZ)
                         ensure_visualization_server()
                         subprocess.Popen(["termux-open-url", VIZ_URL])
-                        set_status("opening visualization at " + VIZ_URL)
+                        set_agent("Synth", "opening current visualization at " + VIZ_URL)
                     except Exception:
                         try:
-                            subprocess.Popen(["termux-open", VIZ])
-                            set_status("opening visualization file")
+                            subprocess.Popen(["termux-open", read_last_visualization_path()])
+                            set_agent("Synth", "opening current visualization file")
                         except Exception as e:
-                            set_status(str(e), False)
+                            set_agent("Synth", str(e), False)
                 else:
-                    set_status("prepare SESSION HTML first", False)
+                    set_agent("Synth", "prepare SESSION HTML first", False)
             elif button_id == btn_commands.id:
-                click("LIST_COMMANDS", "slash command list requested")
+                click("LIST_COMMANDS", "slash command list requested", "Nyro", "listing slash commands")
             elif button_id == btn_new.id:
-                click("NEW_SESSION", "new Pi session requested")
+                click("NEW_SESSION", "new Pi session requested", "Synth", "starting a new session")
             elif button_id == btn_continue.id:
-                click("CONTINUE_SESSION", "continue session requested")
+                click("CONTINUE_SESSION", "continue session requested", "Synth", "continuing the current session")
             elif button_id == btn_clear.id:
-                click("CLEAR", "clear sent")
+                click("CLEAR", "clear sent", "Synth", "clearing the UI")
             elif button_id == btn_quit.id:
-                click("QUIT", "quit sent")
+                click("QUIT", "quit sent", "Synth", "quitting the backend")
