@@ -114,8 +114,8 @@ Utilities:
 - `READ ANSWER`: speaks the latest Pi answer using Edge TTS when available, then espeak fallback
 - `SUMMARY`: asks Pi to summarize the latest answer
 - `SPEAK SUMMARY`: asks Pi for a short spoken summary and reads it aloud
-- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session at `/storage/emulated/0/Download/assembly-pi-session-visualization.html` on Android, with Termux/home fallbacks elsewhere
-- `OPEN VISUALIZATION`: starts a local phone-only HTTP server when needed and opens `http://127.0.0.1:8765/assembly-pi-session-visualization.html` in Chrome/browser
+- `SESSION HTML`: generates a mobile-friendly HTML visualization of the current Pi session at `/storage/emulated/0/Download/assembly-pi-session-visualization.html` on Android, with Termux/home fallbacks elsewhere. The GUI shows `Visualization: generating…` and then `Visualization: finished — ready to open` when the file is updated.
+- `OPEN VISUALIZATION`: starts a local phone-only HTTP server when needed and opens `http://127.0.0.1:8765/assembly-pi-session-visualization.html` in Chrome/browser. The page includes current session metadata, decision links, latest user prompt, latest session output, and a short current-state summary.
 - `SLASH CMDS`: lists local prompt-template and skill slash commands in the backend terminal
 - `NEW SESSION`: starts a fresh Pi SDK session
 - `CONTINUE`: reattaches to the latest saved Pi session for this project

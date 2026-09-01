@@ -297,6 +297,8 @@ export class VoiceApp {
       const path = await generateSessionVisualization(info.sessionFile);
       this.transcript = "Session visualization";
       this.response = `Visualization ready:\n${path}\n\nOpen it from the GUI with OPEN VISUALIZATION.`;
+      this.pushHistory("html", `ready: ${path}`);
+      this.pushHistory("html", `visualization generated: ${path}`);
       this.pushHistory("html", "session visualization ready");
       this.setState("ANSWER_READY", "HTML visualization ready.");
     } catch (err) {
